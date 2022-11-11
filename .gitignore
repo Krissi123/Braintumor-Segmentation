@@ -130,6 +130,11 @@ dmypy.json
 
 
 data/*.csv
+data/mri-datasets
+*.nii
+*.nii.gz
+
+
 models/*.sav
 mlruns
 models/*
