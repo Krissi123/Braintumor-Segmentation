@@ -145,10 +145,6 @@ class BaseScanData:
                 png_mode = self.png_mode,
             )
 
-    def save_nifti(self, filename : str) -> None:
-        """TODO - if needed"""
-        pass
-
     def save_png(
         self, 
         file_prefix : str, 
