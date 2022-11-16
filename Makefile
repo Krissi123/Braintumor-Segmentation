@@ -10,6 +10,7 @@ setup:
 
 
 .PHONY: setup_tf27metal051
+setup_tf27metal051:
 
 	pyenv local 3.9.8
 	python -m venv .venv_dev_tf2.7metal0.51
