@@ -103,7 +103,7 @@ celerybeat.pid
 
 # Environments
 .env
-.venv
+.venv*
 env/
 venv/
 ENV/
@@ -128,12 +128,20 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Data files
 *.csv
 data/*.csv
 data/mri-datasets
 *.nii
 *.nii.gz
+*.png
+*.jpg
 
+# Mac
+.DS_Store
+
+# VS Code
+.vscode
 
 models/*.sav
 mlruns
