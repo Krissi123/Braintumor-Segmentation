@@ -460,10 +460,9 @@ class PatientRecord():
         for idx, slice_array in enumerate(self.save_data):
             bitmap = Image.fromarray(
                 (slice_array * self.scaling_factor).astype('uint8'),
-                mode = 'CMYK'
+                mode = 'RGBA',
             )
-            bitmap.save(f'{file_prefix}_{start_index+idx:0{int(width)}}.jpg',
-            quality=95)
+            bitmap.save(f'{file_prefix}_{start_index+idx:0{int(width)}}.png')
 
         
     def save_segmentation_png(
@@ -478,8 +477,10 @@ class PatientRecord():
         Args:
             file_prefix (str): Filename prefix. PNG files for each slice will be
             appended with _x.png, where x is the slice number.
-            start_index (int, optional): _description_. Defaults to 0.
-            plane (ScanPlane, optional): _description_. Defaults to ScanPlane.TRANSVERSAL.
+            start_index (int, optional): Index number to use for the png file of 
+            the first slice. Defaults to 0.
+            plane (ScanPlane, optional): Plane to take slices from. Defaults to 
+            ScanPlane.TRANSVERSAL.
         """
         if self.segmentation:
             self.segmentation.save_png(
