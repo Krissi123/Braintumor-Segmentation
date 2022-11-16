@@ -15,7 +15,7 @@ tensorflow-macos==2.7.0
 tensorflow-metal==0.5.1
 jupyterlab
 scikit-learn
-Keras==2.8.0
+Keras
 tensorflow-hub
 pydot
 nibabel
