@@ -10,6 +10,15 @@ import numpy as np
 import nibabel as nib # type: ignore
 from matplotlib.axes import Axes as PltAxes # type: ignore
 
+class IncompatibleNiftiTypes(Exception):
+    pass 
+
+class PngFileWriteError(Exception):
+    pass
+
+class MissingSegmentationError(Exception):
+    pass
+
 class ScanType(Enum):
     """ 
     Enumerator for defining MRI sequence types
@@ -20,7 +29,7 @@ class ScanType(Enum):
         T2: T2 sequence
         FLAIR: FLAIR sequence
     """
-    T1 = auto() 
+    T1 = auto()
     T1CE = auto()
     T2 = auto()
     FLAIR = auto()
@@ -74,9 +83,8 @@ class BaseScanData:
         """        
         
         self.scan_file = nib.load(filename)
-        # Get integer size of data in file from header
         self.scan_bit_depth = self.scan_file.header['bitpix'] # bit size as integer
-        self.data_type = f'uint{self.scan_bit_depth}'
+        self.data_type = f'uint{self.scan_bit_depth}' # numpy type string
         self.scan_data = self.scan_file.get_fdata().astype(self.data_type)
         self.scan_max_value = self.scan_data.max()
 
@@ -150,7 +158,6 @@ class BaseScanData:
         file_prefix : str, 
         start_index : int = 0,
         plane : ScanPlane = ScanPlane.TRANSVERSAL,
-        u16bit : bool = False,
     ) -> None:
         """
         Saves a set of PNG images of MRI slices taken in a plane.
@@ -288,10 +295,7 @@ class MriSlice:
         else:
             png_mode = None
 
-    def save_png(
-        self, 
-        filename : str, 
-    ) -> None:
+    def save_png(self, filename : str) -> None:
         """
         Saves MRI slice data to a PNG image.
 
@@ -324,3 +328,164 @@ class MriSlice:
         """
         ax.imshow(self.slice_data, cmap=cmap)
 
+
+class PatientRecord():
+
+    def __init__(self):
+        self.mri_scans = []
+        self.scan_sequences = []
+        self.segmentation = None
+
+    def add_scan_data_from_file(
+        self, 
+        scan_file : str, 
+        sequence : ScanType 
+    ) -> None :
+        """
+        Reads an MRI scan from a data file and adds it to a patients data.
+
+        Args:
+            scan_file (str): File containind scan data.
+            sequence (ScanType): MRI sequence used for this data.
+        """
+        added_scan = MriScan(filename=scan_file, sequence=sequence)
+        self.add_scan_data(added_scan)
+
+    def add_scan_data(self, mri_scan : MriScan) -> None:
+        """
+        Adds an MRI scan to a patients data.
+
+        Args:
+            mri_scan (MriScan): Scan object to be added
+        """
+        self.mri_scans.append(mri_scan)
+        self.scan_sequences.append(mri_scan.sequence)
+
+    def add_segmentation_from_file(
+        self, 
+        segmentation_file : str, 
+        overwrite_existing : bool = False,
+        scale_png_data = True,
+        ) -> None :
+        """
+        Reads a tumour segmentation file and adds the data to a patient's record.
+
+        Args:
+            segmentation_file (str): File containing the data.
+            overwrite_existing (bool, optional): If there is already a segmentation
+            should it be overwritten. Defaults to False.
+            scale_png_data (bool, optional): Should the values in the PNG file
+            be scaled up fill the available bit-depth (better for visualising).
+            Defaults to True.
+        """
+        added_segmentation = TumourSegmentation(
+                filename=segmentation_file,
+                scale_png_data=scale_png_data,
+            )
+        
+        self.add_segmentation(
+            added_segmentation, 
+            overwrite_existing=overwrite_existing,
+        )
+
+    def add_segmentation(
+        self,
+        segmentation : TumourSegmentation,
+        overwrite_existing : bool = False,
+    ) -> None:
+        """
+        Adds a segmentation to a patients record
+
+        Args:
+            segmentation (TumourSegmentation): Segmentation object to be added
+            overwrite_existing (bool, optional): If a segmentation is already
+            present should it be overwritten. Defaults to False.
+        """
+        if self.segmentation and not overwrite_existing:
+            self.segmentation = segmentation
+
+    def save_multi_channel_png(
+        self,     
+        file_prefix : str,        
+        sequence_list : Union[list[ScanType], None] = None, 
+        plane : ScanPlane = ScanPlane.TRANSVERSAL,
+        start_index : int = 0,
+    ) -> None:
+        """
+        Saves a set of MRI sequences for a patient to different colour channels
+        of a set of PNG files.
+
+        Args:
+            sequence_list (Union[list[ScanType], None], optional): List of MRI
+            sequences to write to PNG channels. If not given write all
+
+        Raises:
+            PngFileWriteError: Raised when PNG cannot be written if number of
+            sequences to write is not equal to a valid number of channels in a
+            PNG file (1, 3 or 4).
+        """
+
+        if sequence_list:
+            sequences_to_save = sequence_list
+        else:
+             sequences_to_save = self.scan_sequences
+
+        save_data = np.array([
+            scan.scan_data for scan in self.mri_scans 
+                if scan.sequence in sequences_to_save
+        ])
+        
+        channels = len(save_data)
+
+        if channels not in (1,3,4):
+            sequences_matched = [
+                scan.sequence for scan in self.mri_scans 
+                if scan.sequence in sequences_to_save
+            ]
+            raise PngFileWriteError(
+                f"Cannot write {channels} sequences. "
+                "PNG files can only contain 1, 3 or 4 channels\n"
+                f"{sequences_matched}"
+            )
+
+        # Reorder data to slice,width,height,channel
+        self.save_data = np.moveaxis(save_data, 0, 3)  # Channel to final position
+        self.save_data = np.moveaxis(self.save_data, plane, 0) # Slice to front (forces Trans)
+        
+        self.scaling_factor = (2**8 - 1) / save_data.max()
+
+        # TODO check sizes and required PNG modes. For now, force 8-bit
+        # PIL only supports multichannel 8 bit
+        width = np.ceil(np.log10(len(self.save_data)))
+        for idx, slice_array in enumerate(self.save_data):
+            bitmap = Image.fromarray(
+                (slice_array * self.scaling_factor).astype('uint8'),
+                mode = 'CMYK'
+            )
+            bitmap.save(f'{file_prefix}_{start_index+idx:0{int(width)}}.jpg',
+            quality=95)
+
+        
+    def save_segmentation_png(
+        self, 
+        file_prefix : str, 
+        start_index : int = 0,
+        plane : ScanPlane = ScanPlane.TRANSVERSAL,
+        ) -> None:
+        """
+        Saves tumour segmentation slices to PNG.
+
+        Args:
+            file_prefix (str): Filename prefix. PNG files for each slice will be
+            appended with _x.png, where x is the slice number.
+            start_index (int, optional): _description_. Defaults to 0.
+            plane (ScanPlane, optional): _description_. Defaults to ScanPlane.TRANSVERSAL.
+        """
+        if self.segmentation:
+            self.segmentation.save_png(
+                file_prefix=file_prefix, 
+                start_index=start_index,
+                plane=plane
+            )
+        else:
+            raise MissingSegmentationError()
