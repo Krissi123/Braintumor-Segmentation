@@ -401,7 +401,7 @@ class PatientRecord():
             overwrite_existing (bool, optional): If a segmentation is already
             present should it be overwritten. Defaults to False.
         """
-        if self.segmentation and not overwrite_existing:
+        if segmentation and not overwrite_existing:
             self.segmentation = segmentation
 
     def save_multi_channel_png(
