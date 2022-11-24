@@ -16,7 +16,12 @@ from tensorflow.keras.models import Sequential
 
 
 def train_model(learning_rate=0.001):
-
+    run_description = """
+    Test run using small dataset of 20 patients
+     - classify each slice as healthy or tumour depending on whether it contains
+       core tumour in the segmentation
+    """
+    dataset = 'testset-20'
     # Set information for mlflow
     mlflow_tracking_uri = os.getenv('MLFLOW_URI')
     if mlflow_tracking_uri:
@@ -25,15 +30,18 @@ def train_model(learning_rate=0.001):
     if mlflow_expt:
         mlflow.set_experiment(mlflow_expt)
     mlflow.tensorflow.autolog(log_models=False)
-    mlflow.set_tag('dataset', 'testset-20')
+    mlflow.set_tags({
+            'dataset': dataset,
+            'mlflow.note.content': run_description,
+    })
     
     data_dir = os.path.join('data','mri-datasets','first-20-testset','dataset_multiseq')
     if not os.path.exists(data_dir):
         raise FileNotFoundError(f'{data_dir} not found')
 
     batch_size = 32
-    mlflow.log_param('batch_size', batch_size)
-    mlflow.log_param('validation_batch_size', batch_size)
+    mlflow.log_param('ds_batch_size', batch_size)
+    mlflow.log_param('ds_validation_batch_size', batch_size)
     img_height = 240
     img_width = 240
 
