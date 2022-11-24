@@ -1,0 +1,11 @@
+export BASEDIR=$PWD
+export PYTHONPATH=$PYTHONPATH:$BASEDIR
+
+export CLASSIFICATION_EXPT=braintumour_mri_slice_classification
+export SEGMENTATION_EXPT=braintumour_mri_segmentation
+
+if [ -f .set_mlflow_tracking ]
+ then
+    source .set_mlflow_tracking
+fi
+
