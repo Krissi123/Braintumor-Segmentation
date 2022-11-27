@@ -10,7 +10,7 @@ from tensorflow.keras.models import Sequential
 RSEED = 123
 
 def train_models(
-    batch_size=32, 
+    batch_size=64, 
     patience=0, 
     min_delta=0.001,
     dropout_rate=0.2,
@@ -34,6 +34,25 @@ def train_models(
     tf.tpu.experimental.initialize_tpu_system(cluster_resolver)
     strategy = tf.distribute.TPUStrategy(cluster_resolver)
 
+    # Set information for mlflow
+    run_description = """
+    Fully trained models 
+     - classify each slice by tumour/tissue regions in the segmentation
+    """
+    dataset = 'full_data_stratified'
+    mlflow_tracking_uri = os.getenv('MLFLOW_URI')
+    if mlflow_tracking_uri:
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+    mlflow_expt = os.getenv('CLASSIFICATION_EXPT')
+    if mlflow_expt:
+        mlflow.set_experiment(mlflow_expt)
+    mlflow.tensorflow.autolog(log_models=False)
+    mlflow.set_tags({
+            'dataset': dataset,
+            'mlflow.note.content': run_description,
+    }) 
+    
+
     img_height = 240
     img_width = 240
     data_dir = os.path.join('data','UPENN-GBM','slice_classification_common_stratify','train')
@@ -56,10 +75,7 @@ def train_models(
         image_size=(img_height, img_width),
         batch_size=batch_size)
 
-    mlflow.log_param('ds_batch_size', batch_size)
-    mlflow.log_param('ds_validation_batch_size', batch_size)
     
-
     class_names = train_ds.class_names
 
     # Calculate class weights ofr weighting accuracy
@@ -131,6 +147,9 @@ def train_models(
         run_name=f'fixed_{run_name_params}',
         nested=True
     ):
+        mlflow.log_param('ds_batch_size', batch_size)
+        mlflow.log_param('ds_validation_batch_size', batch_size)
+    
         fixed_base_epochs=80
         history_fixed_base = model.fit(
             train_ds,
@@ -193,23 +212,6 @@ def train_models(
 
 if __name__ == '__main__':
 
-    # Set information for mlflow
-    run_description = """
-    Fully trained models 
-     - classify each slice by tumour/tissue regions in the segmentation
-    """
-    dataset = 'full_data_stratified'
-    mlflow_tracking_uri = os.getenv('MLFLOW_URI')
-    if mlflow_tracking_uri:
-        mlflow.set_tracking_uri(mlflow_tracking_uri)
-    mlflow_expt = os.getenv('CLASSIFICATION_EXPT')
-    if mlflow_expt:
-        mlflow.set_experiment(mlflow_expt)
-    mlflow.tensorflow.autolog(log_models=False)
-    mlflow.set_tags({
-            'dataset': dataset,
-            'mlflow.note.content': run_description,
-    }) 
     
     # Run training
     for patience in [0, 3, 5]:
