@@ -1,9 +1,12 @@
 #!/bin/bash
 LOGDIR=model_logs
+LOGFILE=${LOGDIR}/${1##*\/}_$(date '+%Y-%m-%d-%T').log
 
 if [ ! -d $LOGDIR ]
  then
   mkdir $LOGDIR
 fi
 
-python3 $1 > ${LOGDIR}/${1##*\/}_$(date '+%Y-%m-%d-%T').log
+date > $LOGFILE
+python3 $1 >> $LOGFILE
+date >> $LOGFILE
