@@ -5,3 +5,4 @@ scikit-learn
 mlflow
 boto3
 pydot
+python-dotenv
