@@ -490,3 +490,32 @@ class PatientRecord():
             )
         else:
             raise MissingSegmentationError()
+
+    def segment_healthy_tissue(self):
+        """
+        If MRI scans and a tumour segmentation have been added, changes the segmentation
+        to include healthy brain tissue, based on areas where the scan data shows
+        contrast, but there is no tumour segmented
+
+        Raises:
+            ValueError: if no MRI scans have been added
+            ValueError: If no segmentation has been added
+        """
+
+        if len(self.mri_scans) == 0:
+            raise ValueError("Cannot segment healthy tissue without scan data")
+        if not self.segmentation:
+            raise ValueError(
+                "Cannot segment healthy tissue without a segmentation file")
+        scan_data_list = [x.scan_data for x in self.mri_scans ]
+        reduced_scans = np.sum(scan_data_list, axis=0)
+
+
+        self.segmentation.scan_data = np.where(
+            np.logical_and(
+                self.segmentation.scan_data == 0,
+                reduced_scans > 0
+            ),
+            3,
+            self.segmentation.scan_data
+        )
