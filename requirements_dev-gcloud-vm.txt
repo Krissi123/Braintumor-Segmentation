@@ -4,3 +4,4 @@ pandas
 scikit-learn
 mlflow
 boto3
+python-dotenv
