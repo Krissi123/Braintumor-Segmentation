@@ -21,3 +21,4 @@ pydot
 nibabel
 tensorflow_datasets
 ipywidgets
+mlflow
