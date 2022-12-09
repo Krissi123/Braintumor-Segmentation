@@ -134,8 +134,10 @@ data/*.csv
 data/mri-datasets
 *.nii
 *.nii.gz
-*.png
+data/*.png
 *.jpg
+predictions/
+prediction_movies/
 
 # Mac
 .DS_Store
