@@ -134,7 +134,7 @@ data/*.csv
 data/mri-datasets
 *.nii
 *.nii.gz
-data/*.png
+data/**/*.png
 *.jpg
 predictions/
 prediction_movies/
